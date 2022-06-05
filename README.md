@@ -58,3 +58,4 @@ mvn clean package -Dquarkus.container-image.build=true
 mvn clean package -Dquarkus.kubernetes.deploy=true
 
 minikube service list
+.
