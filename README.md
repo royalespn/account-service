@@ -48,3 +48,13 @@ You can then execute your native executable with: `./target/account-service-1.0.
 Run docker on centos:
 start docker> sudo systemctl start docker
 start kubectl> minikube start --vm=true --vm-driver=virtualbox --memory=20480 --cpus=10
+
+
+Project related:
+eval $(minikube -p minikube docker-env)
+
+mvn clean package -Dquarkus.container-image.build=true
+
+mvn clean package -Dquarkus.kubernetes.deploy=true
+
+minikube service list
