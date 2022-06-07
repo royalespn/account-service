@@ -62,4 +62,3 @@ minikube service list
 
 kubectl delete -f target/kubernetes/minikube.yml
 
-.
