@@ -50,6 +50,7 @@ start docker> sudo systemctl start docker
 start kubectl> minikube start --vm=true --vm-driver=virtualbox --memory=20480 --cpus=10
 
 
+
 Project related:
 eval $(minikube -p minikube docker-env)
 
@@ -58,4 +59,7 @@ mvn clean package -Dquarkus.container-image.build=true
 mvn clean package -Dquarkus.kubernetes.deploy=true
 
 minikube service list
+
+kubectl delete -f target/kubernetes/minikube.yml
+
 .
