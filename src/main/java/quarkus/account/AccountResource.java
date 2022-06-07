@@ -1,82 +1,99 @@
 package quarkus.account;
 
-import javax.annotation.PostConstruct;
-import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonObjectBuilder;
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.transaction.Transactional;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
 import java.math.BigDecimal;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.List;
 
 @Path("/accounts")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class AccountResource {
 
-  Set<Account> accounts = new HashSet<>();
+  @Inject
+  EntityManager entityManager;
 
-  @PostConstruct
-  public void setup() {
-    accounts.add(new Account(123456789L, 987654321L, "George Baird", new BigDecimal("354.23")));
-    accounts.add(new Account(121212121L, 888777666L, "Mary Taylor", new BigDecimal("560.03")));
-    accounts.add(new Account(545454545L, 222444999L, "Diana Rigg", new BigDecimal("422.00")));
+  @GET
+  public List<Account> allAccounts() {
+    return entityManager.createNamedQuery("Accounts.findAll", Account.class).getResultList();
   }
 
   @GET
-  @Produces(MediaType.APPLICATION_JSON)
-  public Set<Account> allAccounts() {
-    return accounts;
-  }
-
-  @GET
-  @Path("/{accountNumber}")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Account getAccount(@PathParam("accountNumber") Long accountNumber) {
-    Optional<Account> response = accounts.stream()
-        .filter(acct -> acct.getAccountNumber().equals(accountNumber))
-        .findFirst();
-
-    return response.orElseThrow(()
-        -> new WebApplicationException("Account with id of " + accountNumber + " does not exist.", 404));
+  @Path("/{acctNumber}")
+  public Account getAccount(@PathParam("acctNumber") Long accountNumber) {
+    try {
+      return entityManager.createNamedQuery("Accounts.findByAccountNumber", Account.class).setParameter("accountNumber", accountNumber).getSingleResult();
+    } catch (NoResultException nre) {
+      throw new WebApplicationException("Account with " + accountNumber + " does not exist.", 404);
+    }
   }
 
   @POST
-  @Consumes(MediaType.APPLICATION_JSON)
-  @Produces(MediaType.APPLICATION_JSON)
+  @Transactional
   public Response createAccount(Account account) {
-    if (account.getAccountNumber() == null) {
-      throw new WebApplicationException("No Account number specified.", 400);
+    if (account.getId() != null) {
+      throw new WebApplicationException("Id was invalidly set on request.", 400);
     }
 
-    accounts.add(account);
+    entityManager.persist(account);
     return Response.status(201).entity(account).build();
   }
 
   @PUT
   @Path("{accountNumber}/withdrawal")
+  @Transactional
   public Account withdrawal(@PathParam("accountNumber") Long accountNumber, String amount) {
-    Account account = getAccount(accountNumber);
-    account.withdrawFunds(new BigDecimal(amount));
-    return account;
+    Account entity;
+    try {
+      entity = getAccount(accountNumber);
+    } catch (NoResultException nre) {
+      throw new WebApplicationException("Account with " + accountNumber + " does not exist.", 404);
+    }
+
+    if (entity.getAccountStatus().equals(AccountStatus.OVERDRAWN)) {
+      throw new WebApplicationException("Account is overdrawn, no further withdrawals permitted", 409);
+    }
+
+    entity.withdrawFunds(new BigDecimal(amount));
+    return entity;
   }
 
   @PUT
   @Path("{accountNumber}/deposit")
+  @Transactional
   public Account deposit(@PathParam("accountNumber") Long accountNumber, String amount) {
-    Account account = getAccount(accountNumber);
-    account.addFunds(new BigDecimal(amount));
-    return account;
+    Account entity;
+    try {
+      entity = getAccount(accountNumber);
+    } catch (NoResultException nre) {
+      throw new WebApplicationException("Account with " + accountNumber + " does not exist.", 404);
+    }
+
+    entity.addFunds(new BigDecimal(amount));
+    return entity;
   }
 
   @DELETE
   @Path("{accountNumber}")
+  @Transactional
   public Response closeAccount(@PathParam("accountNumber") Long accountNumber) {
-    Account oldAccount = getAccount(accountNumber);
-    accounts.remove(oldAccount);
+    Account account;
+    try {
+      account = getAccount(accountNumber);
+    } catch (NoResultException nre) {
+      throw new WebApplicationException("Account with " + accountNumber + " does not exist.", 404);
+    }
+
+    account.close();
     return Response.noContent().build();
   }
 
@@ -92,16 +109,16 @@ public class AccountResource {
       }
 
       JsonObjectBuilder entityBuilder = Json.createObjectBuilder()
-          .add("exceptionType", exception.getClass().getName())
-          .add("code", code);
+              .add("exceptionType", exception.getClass().getName())
+              .add("code", code);
 
       if (exception.getMessage() != null) {
         entityBuilder.add("error", exception.getMessage());
       }
 
       return Response.status(code)
-          .entity(entityBuilder.build())
-          .build();
+              .entity(entityBuilder.build())
+              .build();
     }
   }
 }

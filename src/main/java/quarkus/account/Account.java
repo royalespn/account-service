@@ -2,22 +2,69 @@ package quarkus.account;
 
 import java.math.BigDecimal;
 import java.util.Objects;
+import javax.persistence.*;
 
+@Entity
+@NamedQuery(name = "Accounts.findAll", query = "SELECT a FROM Account a ORDER BY a.accountNumber")
+@NamedQuery(name = "Accounts.findByAccountNumber", query = "SELECT a FROM Account a WHERE a.accountNumber = :accountNumber ORDER BY a.accountNumber")
 public class Account {
-  public Long accountNumber;
-  public Long customerNumber;
-  public String customerName;
-  public BigDecimal balance;
-  public AccountStatus accountStatus = AccountStatus.OPEN;
 
-  public Account() {
+  @Id
+  @SequenceGenerator(name = "accountsSequence", sequenceName = "accounts_id_seq", allocationSize = 1, initialValue = 10)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "accountsSequence")
+  private Long id;
+  private Long accountNumber;
+  private Long customerNumber;
+  private String customerName;
+  private BigDecimal balance;
+  private AccountStatus accountStatus = AccountStatus.OPEN;
+
+  public Long getId() {
+    return id;
   }
 
-  public Account(Long accountNumber, Long customerNumber, String customerName, BigDecimal balance) {
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public Long getAccountNumber() {
+    return accountNumber;
+  }
+
+  public void setAccountNumber(Long accountNumber) {
     this.accountNumber = accountNumber;
+  }
+
+  public Long getCustomerNumber() {
+    return customerNumber;
+  }
+
+  public void setCustomerNumber(Long customerNumber) {
     this.customerNumber = customerNumber;
+  }
+
+  public String getCustomerName() {
+    return customerName;
+  }
+
+  public void setCustomerName(String customerName) {
     this.customerName = customerName;
+  }
+
+  public BigDecimal getBalance() {
+    return balance;
+  }
+
+  public void setBalance(BigDecimal balance) {
     this.balance = balance;
+  }
+
+  public AccountStatus getAccountStatus() {
+    return accountStatus;
+  }
+
+  public void setAccountStatus(AccountStatus accountStatus) {
+    this.accountStatus = accountStatus;
   }
 
   public void markOverdrawn() {
@@ -41,33 +88,18 @@ public class Account {
     balance = balance.add(amount);
   }
 
-  public BigDecimal getBalance() {
-    return balance;
-  }
-
-  public Long getAccountNumber() {
-    return accountNumber;
-  }
-
-  public String getCustomerName() {
-    return customerName;
-  }
-
-  public AccountStatus getAccountStatus() {
-    return accountStatus;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     Account account = (Account) o;
-    return accountNumber.equals(account.accountNumber) &&
-        customerNumber.equals(account.customerNumber);
+    return id.equals(account.id) &&
+            accountNumber.equals(account.accountNumber) &&
+            customerNumber.equals(account.customerNumber);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(accountNumber, customerNumber);
+    return Objects.hash(id, accountNumber, customerNumber);
   }
 }
